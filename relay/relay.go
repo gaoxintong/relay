@@ -120,21 +120,26 @@ func (r *Relay) RegisterCommand(cmds ...device.Command) error {
 }
 
 // AutoPostProperty 自动发送属性，会阻塞主线程
-func (r *Relay) AutoPostProperty(fns map[StateType]func() interface{}) {
+func (r *Relay) AutoPostProperty(stateTypes []StateType) {
+	fns := map[StateType]func() interface{}{
+		STATE:      r.GetState,
+		THSTATE:    r.GetTHState,
+		INPUTSTATE: r.GetInputState,
+	}
 	go func() {
 		for {
 			time.Sleep(r.d)
-			for name, fn := range fns {
+			for _, name := range stateTypes {
 				switch name {
 				case STATE, INPUTSTATE:
-					propertyTyped, ok := fn().(map[int]uint8)
+					propertyTyped, ok := fns[name]().(map[int]uint8)
 					if ok {
 						for id, value := range propertyTyped {
 							r.PostProperty(uint16(id), value)
 						}
 					}
 				case THSTATE:
-					propertyTyped, ok := fn().(map[int]float64)
+					propertyTyped, ok := fns[name]().(map[int]float64)
 					if ok {
 						for id, value := range propertyTyped {
 							r.PostProperty(uint16(id), value)
@@ -259,20 +264,20 @@ func (r *Relay) SearchInputState() {
 	r.sendCommand(cmd)
 }
 
-// StateCMD 控制状态命令枚举
-type StateCMD string
+// StateCMDType 控制状态命令枚举
+type StateCMDType string
 
 // ON 闭合
-const ON StateCMD = "01"
+const ON StateCMDType = "01"
 
 // OFF 断开
-const OFF StateCMD = "02"
+const OFF StateCMDType = "02"
 
 // DelayedOFF 延迟 3 秒断开
-const DelayedOFF StateCMD = "03"
+const DelayedOFF StateCMDType = "03"
 
 // SetState 设置状态
-func (r *Relay) SetState(state StateCMD, nos ...uint8) {
+func (r *Relay) SetState(state StateCMDType, nos ...uint8) {
 	no, err := getNoHex(nos...)
 	if err != nil {
 		// log

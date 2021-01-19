@@ -27,13 +27,10 @@ func TestInit(t *testing.T) {
 
 func TestAutoPostProperty(t *testing.T) {
 	myRelay.Init()
-	fns := map[relay.StateType]func() interface{}{
-		relay.STATE:      myRelay.GetState,
-		relay.THSTATE:    myRelay.GetTHState,
-		relay.INPUTSTATE: myRelay.GetInputState,
-	}
 	myRelay.Use(middleware.Log)
-	myRelay.AutoPostProperty(fns)
+	myRelay.AutoPostProperty([]relay.StateType{
+		relay.STATE, relay.THSTATE, relay.INPUTSTATE,
+	})
 }
 
 func TestRegisterCommand(t *testing.T) {
@@ -43,9 +40,18 @@ func TestRegisterCommand(t *testing.T) {
 			ID: 1,
 			Callback: func(params map[int]interface{}) {
 				fmt.Println("params:", params)
-				// var no = params[0].(uint8)
-				// var state = params[1].(uint8)
-				// myRelay.SetState(no, state)
+				var no = params[0].([]uint8)[0]
+				var state = params[1].([]uint8)[0]
+				var stateType relay.StateCMDType
+				if state == 1 {
+					stateType = relay.ON
+				} else if state == 2 {
+					stateType = relay.OFF
+				} else if state == 3 {
+					stateType = relay.DelayedOFF
+				}
+				fmt.Println("1")
+				myRelay.SetState(stateType, no)
 			},
 		},
 	}
@@ -60,7 +66,7 @@ func TestSetState(t *testing.T) {
 	fmt.Printf("正在开启第 %v 路\n", s)
 	myRelay.SetState(relay.ON, s...)
 	time.Sleep(2 * time.Second)
-	fmt.Printf("正在关闭第 %v 路\n", s)
-	myRelay.SetState(relay.OFF, s...)
-	time.Sleep(1 * time.Second)
+	// fmt.Printf("正在关闭第 %v 路\n", s)
+	// myRelay.SetState(relay.OFF, s...)
+	// time.Sleep(1 * time.Second)
 }

@@ -23,11 +23,20 @@ var statePrint = map[string][]func(no int){
 	}},
 }
 
-// 排序
+// 状态Map 转切片 排序
 func stateMapToSlice(m map[int]uint8) []uint8 {
 	ret := make([]uint8, len(m))
 	for k, v := range m {
 		ret[k-1] = v
+	}
+	return ret
+}
+
+// 输入状态Map 转切片 排序
+func inputStateMapToSlice(m map[int]uint8) []uint8 {
+	ret := make([]uint8, len(m))
+	for k, v := range m {
+		ret[k-11] = v
 	}
 	return ret
 }
@@ -40,19 +49,22 @@ func Log(data relay.Data) relay.Data {
 			stateLog(data)
 		case relay.THSTATE:
 			thStateLog(data)
+		case relay.INPUTSTATE:
+			inputStateLog(data)
 		}
 	}()
 	return data
 }
 
 func stateLog(data relay.Data) {
-	fmt.Println("")
+	fmt.Println("继电器状态")
 	stateArr := stateMapToSlice(data.Data.(map[int]uint8))
 	for i, s := range stateArr {
 		for _, p := range statePrint[strconv.Itoa(int(s))] {
 			p(i)
 		}
 	}
+	fmt.Println("")
 }
 
 func thStateLog(data relay.Data) {
@@ -60,4 +72,14 @@ func thStateLog(data relay.Data) {
 	th := data.Data.(map[int]float64)
 	color.Yellow("温度：%+.2f", th[9]) // 温度
 	color.Red("湿度：%.2f", th[10])    // 湿度
+	fmt.Println("")
+}
+
+func inputStateLog(data relay.Data) {
+	fmt.Println("输入状态")
+	inputStateArr := inputStateMapToSlice(data.Data.(map[int]uint8))
+	for i, s := range inputStateArr {
+		fmt.Printf("%v：%v ", i, s)
+	}
+	fmt.Println("")
 }
