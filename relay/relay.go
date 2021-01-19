@@ -14,7 +14,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-const State, THState, InputState = "state", "THState", "InputState"
+// StateType 状态类型枚举
+type StateType string
+
+// STATE 8路开关状态标识符
+const STATE StateType = "STATE"
+
+// THSTATE 温湿度状态标识符
+const THSTATE StateType = "THSTATE"
+
+// INPUTSTATE 输入状态标识符
+const INPUTSTATE StateType = "INPUTSTATE"
 
 // Relay 继电器设备
 type Relay struct {
@@ -27,11 +37,11 @@ type Relay struct {
 	SubDeviceID   uint16
 	Conn          net.Conn
 
-	middlewares []func(interface{}) interface{}
+	middlewares []func(Data) Data
 	state       map[int]uint8
 	tHState     map[int]float64
 	inputState  map[int]uint8
-	d           time.Duration // 发送属性间隔
+	d           time.Duration // 上报属性间隔时间
 }
 
 // New 创建继电器实例
@@ -52,22 +62,26 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, deviceName 
 
 // Init 初始化资源
 func (r *Relay) Init() error {
+	// 1. 创建 device 实例
 	if err := r.initInstance(); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
+	// 2. 开启 TCP监听
 	if err := r.initTCPServer(); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
+	// 3. 流读取循环
 	if err := r.ReadLoop(13); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
+	// 4. 主动询问状态循环
 	wfs := []WriteFn{
 		{
-			fn: r.SendSearchTHStateCMD,
+			fn: r.SearchTHState,
 			d:  r.d,
 		},
 		{
-			fn: r.SendSearchInputStateCMD,
+			fn: r.SearchInputState,
 			d:  r.d,
 		},
 	}
@@ -105,21 +119,21 @@ func (r *Relay) RegisterCommand(cmds ...device.Command) error {
 	return r.Instance.OnCommand(cmds...)
 }
 
-// AutoPostProperty 自动发送属性
-func (r *Relay) AutoPostProperty(fns map[string]func() interface{}) {
+// AutoPostProperty 自动发送属性，会阻塞主线程
+func (r *Relay) AutoPostProperty(fns map[StateType]func() interface{}) {
 	go func() {
 		for {
 			time.Sleep(r.d)
 			for name, fn := range fns {
 				switch name {
-				case State, InputState:
+				case STATE, INPUTSTATE:
 					propertyTyped, ok := fn().(map[int]uint8)
 					if ok {
 						for id, value := range propertyTyped {
 							r.PostProperty(uint16(id), value)
 						}
 					}
-				case THState:
+				case THSTATE:
 					propertyTyped, ok := fn().(map[int]float64)
 					if ok {
 						for id, value := range propertyTyped {
@@ -130,6 +144,8 @@ func (r *Relay) AutoPostProperty(fns map[string]func() interface{}) {
 			}
 		}
 	}()
+	for {
+	}
 }
 
 // PostProperty 发送属性
@@ -142,7 +158,7 @@ func (r *Relay) PostProperty(id uint16, value interface{}) {
 	r.Instance.PostProperty(p)
 }
 
-// ReadLoop 循环读取数据
+// ReadLoop 开启一个协程，从连接中循环读取数据
 func (r *Relay) ReadLoop(byteOrderLen int) error {
 	if r.Conn == nil {
 		return errors.Wrap(errors.New("not connected"), "read data failed")
@@ -151,7 +167,7 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 		for {
 			data := make([]byte, byteOrderLen)
 			if _, err := r.Conn.Read(data); err != nil {
-				fmt.Println("读取失败")
+				fmt.Println("读取失败", err)
 				// log
 				break
 			}
@@ -163,8 +179,6 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 			}
 			switch cmd {
 			case "aa":
-				r.SaveDeviceInfo(data)
-			case "1a":
 				r.SaveState(data)
 			case "1b":
 				r.SaveInputState(data)
@@ -182,83 +196,124 @@ type WriteFn struct {
 	fn func()
 }
 
-// WriteLoop 循环发送命令
+// WriteLoop 开启N个协程，向连接循环发送命令
 func (r *Relay) WriteLoop(wfs []WriteFn) error {
 	if r.Conn == nil {
 		return errors.Wrap(errors.New("not connected"), "write data failed")
 	}
 	for _, wf := range wfs {
-		go func() {
+		go func(wf WriteFn) {
 			for {
 				time.Sleep(wf.d)
 				wf.fn()
 			}
-		}()
+		}(wf)
 	}
 	return nil
 }
 
 // Use 使用中间件
-func (r *Relay) Use(fns ...func(interface{}) interface{}) {
+func (r *Relay) Use(fns ...func(Data) Data) {
 	for _, fn := range fns {
 		r.middlewares = append(r.middlewares, fn)
 	}
 }
 
+type Data struct {
+	StateType StateType
+	Data      interface{}
+}
+
+// 获取数据
+func (r *Relay) getData(data Data) interface{} {
+	for _, mw := range r.middlewares {
+		data = mw(data)
+	}
+	return data.Data
+}
+
 // GetState 获取 8 路状态
 func (r *Relay) GetState() interface{} {
-	var ret interface{} = r.state
-	for _, mw := range r.middlewares {
-		ret = mw(ret)
-	}
-	return ret
+	return r.getData(Data{StateType: STATE, Data: r.state})
 }
 
 // GetTHState 获取温湿度状态
 func (r *Relay) GetTHState() interface{} {
-	var ret interface{} = r.tHState
-	for _, mw := range r.middlewares {
-		ret = mw(ret)
-	}
-	return ret
+	return r.getData(Data{StateType: THSTATE, Data: r.tHState})
 }
 
 // GetInputState 获取 8 路输入状态
 func (r *Relay) GetInputState() interface{} {
-	var ret interface{} = r.inputState
-	for _, mw := range r.middlewares {
-		ret = mw(ret)
-	}
-	return ret
+	return r.getData(Data{StateType: INPUTSTATE, Data: r.inputState})
 }
 
-// SendSearchTHStateCMD 发送查询温湿度命令
-func (r *Relay) SendSearchTHStateCMD() {
+// SearchTHState 发送查询温湿度命令
+func (r *Relay) SearchTHState() {
 	cmd := "A0 01 08 2A 00 00 00 00 00 00 00 00 A7"
 	r.sendCommand(cmd)
 }
 
-// SendSearchInputStateCMD 发送查询输入状态命令
-func (r *Relay) SendSearchInputStateCMD() {
+// SearchInputState 发送查询输入状态命令
+func (r *Relay) SearchInputState() {
 	cmd := "A0 01 08 1B 00 00 00 00 00 00 00 00 A7"
 	r.sendCommand(cmd)
 }
 
+// StateCMD 控制状态命令枚举
+type StateCMD string
+
+// ON 闭合
+const ON StateCMD = "01"
+
+// OFF 断开
+const OFF StateCMD = "02"
+
+// DelayedOFF 延迟 3 秒断开
+const DelayedOFF StateCMD = "03"
+
+// SetState 设置状态
+func (r *Relay) SetState(state StateCMD, nos ...uint8) {
+	no, err := getNoHex(nos...)
+	if err != nil {
+		// log
+	}
+	cmd := "A0 01 08 2B 00 " + no + " " + string(state) + " 00 00 00 00 00 A7"
+	r.sendCommand(cmd)
+}
+
+// 获取选择编号 16 进制字符串
+func getNoHex(nos ...uint8) (string, error) {
+	stateArr := strings.Split("00000000", "")
+	for _, no := range nos {
+		stateArr[7-(no-1)] = "1"
+	}
+	stateStr := strings.Join(stateArr, "")
+	return utils.BinaryToHex(stateStr)
+}
+
+// 发送命令
 func (r *Relay) sendCommand(cmd string) error {
-	cmd = strings.ReplaceAll(cmd, " ", "")
-	cmdByte, err := hex.DecodeString(cmd)
+	cmdByte, err := commandFormatter(cmd)
 	if err != nil {
 		return errors.Wrap(err, "send command failed")
 	}
-	_, err = r.Conn.Write(cmdByte)
-	return errors.Wrap(err, "send command failed")
+	if _, err = r.Conn.Write(cmdByte); err != nil {
+		return errors.Wrap(err, "send command failed")
+	}
+	return nil
 }
 
-// SaveDeviceInfo 保存设备信息
-func (r *Relay) SaveDeviceInfo(data []byte) {
+// 格式化命令
+func commandFormatter(originalCommand string) ([]byte, error) {
+	originalCommand = strings.ReplaceAll(originalCommand, " ", "")
+	return hex.DecodeString(originalCommand)
+}
+
+// SaveState 保存状态
+func (r *Relay) SaveState(data []byte) {
 	allStateStr := fmt.Sprintf("%b", data[5])
+	stateMap := make(map[int]uint8, len(allStateStr))
 	if len(allStateStr) == 8 {
-		stateMap := make(map[int]uint8, len(allStateStr))
 		allStateArr := strings.Split(allStateStr, "")
 		for i, state := range allStateArr {
 			stateInt, err := strconv.ParseInt(state, 10, 32)
@@ -268,18 +323,17 @@ func (r *Relay) SaveDeviceInfo(data []byte) {
 			stateMap[len(allStateArr)-i] = uint8(stateInt)
 		}
 		r.state = stateMap
+	} else if allStateStr == "0" {
+		for i := 1; i <= 8; i++ {
+			stateMap[i] = 0
+		}
+		r.state = stateMap
 	}
-}
-
-// SaveState 保存状态
-func (r *Relay) SaveState(data []byte) {
-	fmt.Println("继电器状态")
-	logByte(data)
 }
 
 // SaveInputState 保存输入状态
 func (r *Relay) SaveInputState(data []byte) {
-	allInputStateStr := fmt.Sprintf("%b", data[5])
+	allInputStateStr := utils.ByteToBinary(data[4])
 	if len(allInputStateStr) == 8 {
 		inputMap := make(map[int]uint8, len(allInputStateStr))
 		allInputStateArr := strings.Split(allInputStateStr, "")
@@ -291,7 +345,6 @@ func (r *Relay) SaveInputState(data []byte) {
 			inputMap[10+len(allInputStateArr)-i] = uint8(inputStateInt)
 		}
 		r.inputState = inputMap
-		fmt.Println("inputMap:", inputMap)
 	}
 }
 
@@ -304,13 +357,13 @@ func (r *Relay) SaveTHState(data []byte) {
 	}
 	temperatureInteger := fmt.Sprintf("%d", data[5])
 	temperatureDecimal := fmt.Sprintf("%d", data[6])
-	temperature, err := stringConcatenationToFloating(temperatureInteger, temperatureDecimal, isPositive)
+	temperature, err := stringToFloat64(temperatureInteger, temperatureDecimal, isPositive)
 	if err != nil {
 		// log
 	}
 	humidityInteger := fmt.Sprintf("%d", data[7])
 	humidityDecimal := fmt.Sprintf("%d", data[8])
-	humidity, err := stringConcatenationToFloating(humidityInteger, humidityDecimal, true)
+	humidity, err := stringToFloat64(humidityInteger, humidityDecimal, true)
 	if err != nil {
 		// log
 	}
@@ -320,8 +373,8 @@ func (r *Relay) SaveTHState(data []byte) {
 	r.tHState = THMap
 }
 
-// stringConcatenationToFloating 字符串转 float64
-func stringConcatenationToFloating(integer string, decimal string, positive bool) (float64, error) {
+// stringToFloat64 字符串转 float64
+func stringToFloat64(integer string, decimal string, positive bool) (float64, error) {
 	str := integer + "." + decimal
 	ret, err := strconv.ParseFloat(str, 10)
 	if err != nil {
@@ -331,10 +384,4 @@ func stringConcatenationToFloating(integer string, decimal string, positive bool
 		ret -= 2 * ret
 	}
 	return ret, nil
-}
-
-func logByte(data []byte) {
-	for _, b := range data {
-		fmt.Printf("%x ", b)
-	}
 }
