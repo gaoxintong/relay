@@ -1,8 +1,7 @@
-package gateway_test
+package main
 
 import (
 	"relay/gateway"
-	"testing"
 )
 
 var g *gateway.Gateway
@@ -16,7 +15,7 @@ func init() {
 	g = gateway.New(TCPAddress, IOTHubAddress, productKey, deviceName, version)
 }
 
-func TestInit(t *testing.T) {
+func main() {
 	if err := g.Run(); err != nil {
 		panic(err)
 	}

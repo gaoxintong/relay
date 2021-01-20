@@ -4,13 +4,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type User struct {
+type DeviceType struct {
 	gorm.Model
 
 	RecordID string `gorm:"unique:true"`
 
-	Name     string
-	PassCode string
-	NickName string
-	Role     string
+	Name string
 }

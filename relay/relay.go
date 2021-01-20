@@ -65,13 +65,13 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, deviceName 
 
 // Init 初始化资源
 func (r *Relay) Init(conn net.Conn) error {
-	// 2. 维护连接
+	// 1. 维护连接
 	r.Conn = conn
-	// 3. 流读取循环
+	// 2. 流读取循环
 	if err := r.ReadLoop(13); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
-	// 4. 主动询问状态循环
+	// 3. 主动询问状态循环
 	wfs := []WriteFn{
 		{
 			fn: r.SearchTHState,
