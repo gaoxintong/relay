@@ -1,0 +1,15 @@
+relay.Access: 39.98.250.155:18106
+relay.ID: 2
+relay.Name: relay
+relay.ProductKey: abdf6b26a399494869c5db5476d1d617fdb5f7d6579fd093ccf78c77ea61e70f
+relay.Secret: 1VVe+GD2l0TJvzHyt2zxLjeZ6wR+dESi
+relay.Token:
+- 28
+- 122
+- 148
+- 79
+- 77
+- 31
+- 97
+- 180
+relay.Version: 1.0.0

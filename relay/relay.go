@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"iot-sdk-go/sdk/device"
-	"iot-sdk-go/sdk/topics"
 	"net"
 	"relay/pkg/utils"
 	"strconv"
@@ -26,9 +25,13 @@ const THSTATE StateType = "THSTATE"
 // INPUTSTATE 输入状态标识符
 const INPUTSTATE StateType = "INPUTSTATE"
 
+// DefaultStateTypes 默认类型列表
+var DefaultStateTypes = []StateType{
+	STATE, THSTATE, INPUTSTATE,
+}
+
 // Relay 继电器设备
 type Relay struct {
-	Instance      *device.Device
 	TCPAddress    string
 	IOTHubAddress string
 	ProductKey    string
@@ -61,15 +64,9 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, deviceName 
 }
 
 // Init 初始化资源
-func (r *Relay) Init() error {
-	// 1. 创建 device 实例
-	if err := r.initInstance(); err != nil {
-		return errors.Wrap(err, "init relay failed")
-	}
-	// 2. 开启 TCP监听
-	if err := r.initTCPServer(); err != nil {
-		return errors.Wrap(err, "init relay failed")
-	}
+func (r *Relay) Init(conn net.Conn) error {
+	// 2. 维护连接
+	r.Conn = conn
 	// 3. 流读取循环
 	if err := r.ReadLoop(13); err != nil {
 		return errors.Wrap(err, "init relay failed")
@@ -91,36 +88,8 @@ func (r *Relay) Init() error {
 	return nil
 }
 
-// 创建 device 实例
-func (r *Relay) initInstance() error {
-	myTopics := topics.Override(topics.Topics{
-		Register: "http://" + r.IOTHubAddress + "/v1/devices/registration",
-		Login:    "http://" + r.IOTHubAddress + "/v1/devices/authentication",
-	})
-	relayInstance := device.NewDevice(r.ProductKey, r.DeviceName, r.Version, device.Topics(myTopics))
-	if err := relayInstance.AutoInit(); err != nil {
-		return errors.Wrap(err, "init relay instance failed")
-	}
-	r.Instance = relayInstance
-	return nil
-}
-
-// 开启 tcp 监听
-func (r *Relay) initTCPServer() error {
-	listener, err := net.Listen("tcp", r.TCPAddress)
-	if r.Conn, err = listener.Accept(); err != nil {
-		return errors.Wrap(err, "init tcp server failed")
-	}
-	return nil
-}
-
-// RegisterCommand 注册命令
-func (r *Relay) RegisterCommand(cmds ...device.Command) error {
-	return r.Instance.OnCommand(cmds...)
-}
-
 // AutoPostProperty 自动发送属性，会阻塞主线程
-func (r *Relay) AutoPostProperty(stateTypes []StateType) {
+func (r *Relay) AutoPostProperty(postFn func(device.Property) error, stateTypes []StateType) {
 	fns := map[StateType]func() interface{}{
 		STATE:      r.GetState,
 		THSTATE:    r.GetTHState,
@@ -135,14 +104,14 @@ func (r *Relay) AutoPostProperty(stateTypes []StateType) {
 					propertyTyped, ok := fns[name]().(map[int]uint8)
 					if ok {
 						for id, value := range propertyTyped {
-							r.PostProperty(uint16(id), value)
+							r.PostProperty(postFn, uint16(id), value)
 						}
 					}
 				case THSTATE:
 					propertyTyped, ok := fns[name]().(map[int]float64)
 					if ok {
 						for id, value := range propertyTyped {
-							r.PostProperty(uint16(id), value)
+							r.PostProperty(postFn, uint16(id), value)
 						}
 					}
 				}
@@ -154,13 +123,13 @@ func (r *Relay) AutoPostProperty(stateTypes []StateType) {
 }
 
 // PostProperty 发送属性
-func (r *Relay) PostProperty(id uint16, value interface{}) {
+func (r *Relay) PostProperty(postFn func(device.Property) error, id uint16, value interface{}) {
 	p := device.Property{
 		SubDeviceID: r.SubDeviceID,
 		PropertyID:  id,
 		Value:       []interface{}{value},
 	}
-	r.Instance.PostProperty(p)
+	postFn(p)
 }
 
 // ReadLoop 开启一个协程，从连接中循环读取数据
@@ -224,6 +193,7 @@ func (r *Relay) Use(fns ...func(Data) Data) {
 	}
 }
 
+// Data 发送的数据
 type Data struct {
 	StateType StateType
 	Data      interface{}
@@ -389,4 +359,14 @@ func stringToFloat64(integer string, decimal string, positive bool) (float64, er
 		ret -= 2 * ret
 	}
 	return ret, nil
+}
+
+// Online 上线
+func (r *Relay) Online(postFn func(device.Property) error, conn net.Conn, stateTypes []StateType) error {
+	if err := r.Init(conn); err != nil {
+		fmt.Println("err:", err)
+		return err
+	}
+	r.AutoPostProperty(postFn, stateTypes)
+	return nil
 }
