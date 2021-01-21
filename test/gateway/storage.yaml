@@ -4,12 +4,12 @@ relay.Name: relay
 relay.ProductKey: abdf6b26a399494869c5db5476d1d617fdb5f7d6579fd093ccf78c77ea61e70f
 relay.Secret: 1VVe+GD2l0TJvzHyt2zxLjeZ6wR+dESi
 relay.Token:
-- 39
-- 171
-- 154
-- 137
-- 46
-- 193
-- 151
-- 68
+- 147
+- 108
+- 53
+- 250
+- 87
+- 71
+- 254
+- 3
 relay.Version: 1.0.0

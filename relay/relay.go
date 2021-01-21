@@ -13,73 +13,48 @@ import (
 	"github.com/pkg/errors"
 )
 
-// StateType 状态类型枚举
-type StateType string
-
-// STATE 8路开关状态标识符
-const STATE StateType = "STATE"
-
-// THSTATE 温湿度状态标识符
-const THSTATE StateType = "THSTATE"
-
-// INPUTSTATE 输入状态标识符
-const INPUTSTATE StateType = "INPUTSTATE"
-
-// DefaultStateTypes 默认类型列表
-var DefaultStateTypes = []StateType{
-	STATE, THSTATE, INPUTSTATE,
-}
-
 // Relay 继电器设备
 type Relay struct {
-	TCPAddress    string
-	IOTHubAddress string
-	ProductKey    string
-	DeviceName    string
-	Version       string
-	SubDeviceID   uint16
-	Conn          net.Conn
+	Instance *device.Device
+
+	SubDeviceID uint16
+	Conn        net.Conn
 
 	middlewares []func(Data) Data
 	state       map[int]uint8
 	tHState     map[int]float64
 	inputState  map[int]uint8
-	d           time.Duration // 上报属性间隔时间
+	keepAlive   time.Duration
 }
 
 // New 创建继电器实例
-func New(TCPAddress string, IOTHubAddress string, productKey string, deviceName string, version string, subDeviceID uint16, duration time.Duration) *Relay {
+func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepAlive time.Duration) *Relay {
 	return &Relay{
-		TCPAddress:    TCPAddress,
-		IOTHubAddress: IOTHubAddress,
-		ProductKey:    productKey,
-		DeviceName:    deviceName,
-		Version:       version,
-		SubDeviceID:   subDeviceID,
-		state:         make(map[int]uint8, 8),
-		tHState:       make(map[int]float64, 2),
-		inputState:    make(map[int]uint8, 8),
-		d:             duration,
+		Instance:    DeviceInstance,
+		Conn:        conn,
+		SubDeviceID: subDeviceID,
+		state:       make(map[int]uint8, 8),
+		tHState:     make(map[int]float64, 2),
+		inputState:  make(map[int]uint8, 8),
+		keepAlive:   keepAlive,
 	}
 }
 
 // Init 初始化资源
-func (r *Relay) Init(conn net.Conn) error {
-	// 1. 维护连接
-	r.Conn = conn
-	// 2. 流读取循环
+func (r *Relay) Init() error {
+	// 1. 流读取循环
 	if err := r.ReadLoop(13); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
-	// 3. 主动询问状态循环
+	// 2. 主动询问状态循环
 	wfs := []WriteFn{
 		{
-			fn: r.SearchTHState,
-			d:  r.d,
+			fn: r.InquiryTHState,
+			d:  r.keepAlive,
 		},
 		{
-			fn: r.SearchInputState,
-			d:  r.d,
+			fn: r.InquiryInputState,
+			d:  r.keepAlive,
 		},
 	}
 	if err := r.WriteLoop(wfs); err != nil {
@@ -89,101 +64,68 @@ func (r *Relay) Init(conn net.Conn) error {
 }
 
 // AutoPostProperty 自动发送属性，会阻塞主线程
-func (r *Relay) AutoPostProperty(postFn func(device.Property) error, stateTypes []StateType) {
+func (r *Relay) AutoPostProperty(stateTypes []StateType) {
 	fns := map[StateType]func() interface{}{
 		STATE:      r.GetState,
 		THSTATE:    r.GetTHState,
 		INPUTSTATE: r.GetInputState,
 	}
-	go func() {
-		for {
-			time.Sleep(r.d)
-			for _, name := range stateTypes {
-				switch name {
-				case STATE, INPUTSTATE:
-					propertyTyped, ok := fns[name]().(map[int]uint8)
-					if ok {
-						for id, value := range propertyTyped {
-							r.PostProperty(postFn, uint16(id), value)
-						}
-					}
-				case THSTATE:
-					propertyTyped, ok := fns[name]().(map[int]float64)
-					if ok {
-						for id, value := range propertyTyped {
-							r.PostProperty(postFn, uint16(id), value)
-						}
-					}
-				}
-			}
-		}
-	}()
+	go r.postPropertyLoop(fns, stateTypes)
 	for {
 	}
 }
 
+// 循环发送属性
+func (r *Relay) postPropertyLoop(fns map[StateType]func() interface{}, stateTypes []StateType) {
+	for {
+		time.Sleep(r.keepAlive)
+		for _, name := range stateTypes {
+			property := fns[name]()
+			switch name {
+			case STATE:
+				r.postState(property)
+			case INPUTSTATE:
+				r.postInputState(property)
+			case THSTATE:
+				r.postTHState(property)
+			}
+		}
+	}
+}
+
+// 发送闭合状态
+func (r *Relay) postState(property interface{}) {
+	propertyTyped, ok := property.(map[int]uint8)
+	if ok {
+		for id, value := range propertyTyped {
+			r.PostProperty(uint16(id), value)
+		}
+	}
+}
+
+// 发送输入状态
+func (r *Relay) postInputState(property interface{}) {
+	r.postState(property) // 与闭合状态逻辑相同
+}
+
+// 发送温湿度状态
+func (r *Relay) postTHState(property interface{}) {
+	propertyTyped, ok := property.(map[int]float64)
+	if ok {
+		for id, value := range propertyTyped {
+			r.PostProperty(uint16(id), value)
+		}
+	}
+}
+
 // PostProperty 发送属性
-func (r *Relay) PostProperty(postFn func(device.Property) error, id uint16, value interface{}) {
+func (r *Relay) PostProperty(id uint16, value interface{}) {
 	p := device.Property{
 		SubDeviceID: r.SubDeviceID,
 		PropertyID:  id,
 		Value:       []interface{}{value},
 	}
-	postFn(p)
-}
-
-// ReadLoop 开启一个协程，从连接中循环读取数据
-func (r *Relay) ReadLoop(byteOrderLen int) error {
-	if r.Conn == nil {
-		return errors.Wrap(errors.New("not connected"), "read data failed")
-	}
-	go func() {
-		for {
-			data := make([]byte, byteOrderLen)
-			if _, err := r.Conn.Read(data); err != nil {
-				fmt.Println("读取失败", err)
-				// log
-				break
-			}
-			cmd, err := utils.ByteToHex(data[3])
-			cmd = strings.ToLower(cmd)
-			if err != nil {
-				// log
-				break
-			}
-			switch cmd {
-			case "aa":
-				r.SaveState(data)
-			case "1b":
-				r.SaveInputState(data)
-			case "2a":
-				r.SaveTHState(data)
-			}
-		}
-	}()
-	return nil
-}
-
-// WriteFn 向 conn 写入的方法集合
-type WriteFn struct {
-	d  time.Duration
-	fn func()
-}
-
-// WriteLoop 开启N个协程，向连接循环发送命令
-func (r *Relay) WriteLoop(wfs []WriteFn) error {
-	if r.Conn == nil {
-		return errors.Wrap(errors.New("not connected"), "write data failed")
-	}
-	for _, wf := range wfs {
-		go func(wf WriteFn) {
-			for {
-				time.Sleep(wf.d)
-				wf.fn()
-			}
-		}(wf)
-	}
-	return nil
+	r.Instance.PostProperty(p)
 }
 
 // Use 使用中间件
@@ -222,29 +164,17 @@ func (r *Relay) GetInputState() interface{} {
 	return r.getData(Data{StateType: INPUTSTATE, Data: r.inputState})
 }
 
-// SearchTHState 发送查询温湿度命令
-func (r *Relay) SearchTHState() {
+// InquiryTHState 发送查询温湿度命令
+func (r *Relay) InquiryTHState() {
 	cmd := "A0 01 08 2A 00 00 00 00 00 00 00 00 A7"
 	r.sendCommand(cmd)
 }
 
-// SearchInputState 发送查询输入状态命令
-func (r *Relay) SearchInputState() {
+// InquiryInputState 发送查询输入状态命令
+func (r *Relay) InquiryInputState() {
 	cmd := "A0 01 08 1B 00 00 00 00 00 00 00 00 A7"
 	r.sendCommand(cmd)
 }
-
-// StateCMDType 控制状态命令枚举
-type StateCMDType string
-
-// ON 闭合
-const ON StateCMDType = "01"
-
-// OFF 断开
-const OFF StateCMDType = "02"
-
-// DelayedOFF 延迟 3 秒断开
-const DelayedOFF StateCMDType = "03"
 
 // SetState 设置状态
 func (r *Relay) SetState(state StateCMDType, nos ...uint8) {
@@ -306,6 +236,49 @@ func (r *Relay) SaveState(data []byte) {
 	}
 }
 
+// SaveTHState 保存温湿度状态
+func (r *Relay) SaveTHState(data []byte) {
+	temperature, err := makeTemperature(data[4], data[5], data[6])
+	if err != nil {
+		fmt.Println(err)
+		// log
+	}
+	humidity, err := makeHumidity(data[7], data[8])
+	if err != nil {
+		fmt.Println(err)
+		// log
+	}
+	THMap := make(map[int]float64, 2)
+	THMap[9] = temperature
+	THMap[10] = humidity
+	r.tHState = THMap
+}
+
+func makeTemperature(positive byte, integer byte, decimal byte) (float64, error) {
+	temperaturePositiveOrNegative := fmt.Sprintf("%d", positive)
+	isPositive := false
+	if temperaturePositiveOrNegative == "1" {
+		isPositive = true
+	}
+	temperatureInteger := fmt.Sprintf("%d", integer)
+	temperatureDecimal := fmt.Sprintf("%d", decimal)
+	temperature, err := stringToFloat64(temperatureInteger, temperatureDecimal, isPositive)
+	if err != nil {
+		return 0, errors.Wrap(err, "make temperature failed")
+	}
+	return temperature, nil
+}
+
+func makeHumidity(integer byte, decimal byte) (float64, error) {
+	humidityInteger := fmt.Sprintf("%d", integer)
+	humidityDecimal := fmt.Sprintf("%d", decimal)
+	humidity, err := stringToFloat64(humidityInteger, humidityDecimal, true)
+	if err != nil {
+		return 0, errors.Wrap(err, "make humidity failed")
+	}
+	return humidity, nil
+}
+
 // SaveInputState 保存输入状态
 func (r *Relay) SaveInputState(data []byte) {
 	allInputStateStr := utils.ByteToBinary(data[4])
@@ -323,31 +296,6 @@ func (r *Relay) SaveInputState(data []byte) {
 	}
 }
 
-// SaveTHState 保存温湿度状态
-func (r *Relay) SaveTHState(data []byte) {
-	temperaturePositiveOrNegative := fmt.Sprintf("%d", data[4])
-	isPositive := false
-	if temperaturePositiveOrNegative == "1" {
-		isPositive = true
-	}
-	temperatureInteger := fmt.Sprintf("%d", data[5])
-	temperatureDecimal := fmt.Sprintf("%d", data[6])
-	temperature, err := stringToFloat64(temperatureInteger, temperatureDecimal, isPositive)
-	if err != nil {
-		// log
-	}
-	humidityInteger := fmt.Sprintf("%d", data[7])
-	humidityDecimal := fmt.Sprintf("%d", data[8])
-	humidity, err := stringToFloat64(humidityInteger, humidityDecimal, true)
-	if err != nil {
-		// log
-	}
-	THMap := make(map[int]float64, 2)
-	THMap[9] = temperature
-	THMap[10] = humidity
-	r.tHState = THMap
-}
-
 // stringToFloat64 字符串转 float64
 func stringToFloat64(integer string, decimal string, positive bool) (float64, error) {
 	str := integer + "." + decimal
@@ -362,11 +310,10 @@ func stringToFloat64(integer string, decimal string, positive bool) (float64, er
 }
 
 // Online 上线
-func (r *Relay) Online(postFn func(device.Property) error, conn net.Conn, stateTypes []StateType) error {
-	if err := r.Init(conn); err != nil {
-		fmt.Println("err:", err)
+func (r *Relay) Online(stateTypes []StateType) error {
+	if err := r.Init(); err != nil {
 		return err
 	}
-	r.AutoPostProperty(postFn, stateTypes)
+	r.AutoPostProperty(stateTypes)
 	return nil
 }

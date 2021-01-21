@@ -70,19 +70,30 @@ func (g *Gateway) initInstance() error {
 
 // DeviceOnline 设备上线
 func (g *Gateway) DeviceOnline(conn net.Conn, deviceID uint16) {
+	device := g.getRelay(conn, deviceID)
+	device.Online(relay.DefaultStateTypes)
+}
+
+// 获取继电器设备实例 不存在则创建
+func (g *Gateway) getRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 	device, ok := g.Devices[deviceID]
 	if !ok {
-		device = relay.New(g.TCPAddress, g.IOTHubAddress, g.ProductKey, g.Name+strconv.Itoa(int(deviceID)), g.Version, deviceID, g.KeepAlive)
+		device = g.makeRelay(conn, deviceID)
 		g.Devices[deviceID] = device
 	}
-	device.Online(g.Instance.PostProperty, conn, relay.DefaultStateTypes)
+	return device
+}
+
+// 创建继电器设备实例
+func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
+	return relay.New(g.Instance, conn, deviceID, g.KeepAlive)
 }
 
 // 注册命令
 func (g *Gateway) initCommand() error {
 	fns := []device.Command{
 		{
-			ID:       1,
+			ID:       1, // 1 表示输入开关
 			Callback: g.dispatchCommand,
 		},
 	}
@@ -169,9 +180,9 @@ func getDeviceID(data []byte) (uint16, error) {
 		return 0, errors.Wrap(err, "get ID failed")
 	}
 	ID := IDM + IDN
-	IDUINT, err := strconv.ParseUint(ID, 10, 32)
+	IDUint16, err := strconv.ParseUint(ID, 10, 32)
 	if err != nil {
 		return 0, errors.Wrap(err, "get ID failed")
 	}
-	return uint16(IDUINT), nil
+	return uint16(IDUint16), nil
 }
