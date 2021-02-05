@@ -60,7 +60,7 @@ func (g *Gateway) initInstance() error {
 		Register: "http://" + g.IOTHubAddress + "/v1/devices/registration",
 		Login:    "http://" + g.IOTHubAddress + "/v1/devices/authentication",
 	})
-	deviceInstance := device.NewDevice(g.ProductKey, g.Name, g.Version, device.Topics(myTopics))
+	deviceInstance := device.New(g.ProductKey, g.Name, g.Version, device.Topics(myTopics))
 	if err := deviceInstance.AutoInit(); err != nil {
 		return errors.Wrap(err, "init relay instance failed")
 	}
