@@ -42,11 +42,11 @@ func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepA
 
 // Init 初始化资源
 func (r *Relay) Init() error {
-	// 1. 流读取循环
+	// 流读取循环
 	if err := r.ReadLoop(13); err != nil {
 		return errors.Wrap(err, "init relay failed")
 	}
-	// 2. 主动询问状态循环
+	// 主动询问状态循环
 	wfs := []WriteFn{
 		{
 			fn: r.InquiryTHState,
@@ -57,6 +57,7 @@ func (r *Relay) Init() error {
 			d:  r.keepAlive,
 		},
 	}
+
 	if err := r.WriteLoop(wfs); err != nil {
 		return err
 	}

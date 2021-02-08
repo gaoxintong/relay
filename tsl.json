@@ -208,15 +208,15 @@
       "params": [
         {
           "value_type": 7,
-          "name": "subDeviceID"
-        },
-        {
-          "value_type": 7,
           "name": "no"
         },
         {
           "value_type": 7,
           "name": "state"
+        },
+        {
+          "value_type": 8,
+          "name": "subDeviceID"
         }
       ]
     }
