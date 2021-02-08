@@ -2,94 +2,36 @@
   "objects": [
     {
       "no": 1,
-      "label": "switch1",
+      "label": "outputState",
       "part": 1,
       "status": [
         {
           "value_type": 7,
-          "name": "status"
+          "name": "route"
+        },
+        {
+          "value_type": 7,
+          "name": "value"
         }
       ]
     },
     {
       "no": 2,
-      "label": "switch2",
+      "label": "inputState",
       "part": 1,
       "status": [
         {
           "value_type": 7,
-          "name": "status"
+          "name": "value"
+        },
+        {
+          "value_type": 7,
+          "name": "route"
         }
       ]
     },
     {
       "no": 3,
-      "label": "switch3",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 4,
-      "label": "switch4",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 5,
-      "label": "switch5",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 6,
-      "label": "switch6",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 7,
-      "label": "switch7",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 8,
-      "label": "switch8",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "status"
-        }
-      ]
-    },
-    {
-      "no": 9,
       "label": "temperature",
       "part": 1,
       "status": [
@@ -100,101 +42,13 @@
       ]
     },
     {
-      "no": 10,
+      "no": 4,
       "label": "humidity",
       "part": 1,
       "status": [
         {
           "value_type": 1,
           "name": "degrees"
-        }
-      ]
-    },
-    {
-      "no": 11,
-      "label": "input1",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 12,
-      "label": "input2",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 13,
-      "label": "input3",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 14,
-      "label": "input4",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 15,
-      "label": "input5",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 16,
-      "label": "input6",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 17,
-      "label": "input7",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
-        }
-      ]
-    },
-    {
-      "no": 18,
-      "label": "input8",
-      "part": 1,
-      "status": [
-        {
-          "value_type": 7,
-          "name": "state"
         }
       ]
     }

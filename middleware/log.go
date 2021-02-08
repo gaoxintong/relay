@@ -44,7 +44,7 @@ func inputStateMapToSlice(m map[int]uint8) []uint8 {
 // Log 日志输出 用于状态上报
 func Log(data relay.Data) relay.Data {
 	go func() {
-		switch data.StateType {
+		switch data.PropertyType {
 		case relay.STATE:
 			stateLog(data)
 		case relay.THSTATE:

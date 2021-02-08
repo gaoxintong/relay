@@ -43,7 +43,7 @@ func cmdToStringLower(b byte) (string, error) {
 func (r *Relay) dispatchSaveTask(cmd string, data []byte) {
 	switch cmd {
 	case "aa":
-		r.SaveState(data)
+		r.SaveOutputState(data)
 	case "1b":
 		r.SaveInputState(data)
 	case "2a":

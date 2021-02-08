@@ -11,3 +11,6 @@ const OFF StateCMDType = "02"
 
 // DelayedOFF 延迟 3 秒断开
 const DelayedOFF StateCMDType = "03"
+
+// Unknown 未知类型
+const Unknown StateCMDType = ""

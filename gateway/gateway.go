@@ -93,15 +93,14 @@ func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 func (g *Gateway) initCommand() error {
 	fns := []device.Command{
 		{
-			ID:       1, // 1 表示输入开关
-			Callback: g.dispatchCommand,
+			ID:       1, // 1 表示控制输入开关
+			Callback: g.dispatchSetStateCommand,
 		},
 	}
 	return g.Instance.OnCommand(fns...)
 }
 
-// 派遣命令
-func (g *Gateway) dispatchCommand(params map[int]interface{}) {
+func (g *Gateway) dispatchSetStateCommand(params map[int]interface{}) {
 	// 查找子设备
 	deviceID, err := makeDeviceID(params[2])
 	if err != nil {
@@ -110,18 +109,26 @@ func (g *Gateway) dispatchCommand(params map[int]interface{}) {
 	}
 	// 调用子设备的设备状态方法
 	if device, ok := g.Devices[deviceID]; ok {
-		var no = params[0].([]uint8)[0]
-		var state = params[1].([]uint8)[0]
-		var stateType relay.StateCMDType
-		if state == 1 {
-			stateType = relay.ON
-		} else if state == 2 {
-			stateType = relay.OFF
-		} else if state == 3 {
-			stateType = relay.DelayedOFF
+		no := params[0].([]uint8)[0]
+		state := params[1].([]uint8)[0]
+		stateType := getDeviceState(state)
+		if stateType != relay.Unknown {
+			device.SetState(stateType, no)
 		}
-		device.SetState(stateType, no)
 	}
+}
+
+func getDeviceState(state uint8) relay.StateCMDType {
+	if state == 1 {
+		return relay.ON
+	}
+	if state == 2 {
+		return relay.OFF
+	}
+	if state == 3 {
+		return relay.DelayedOFF
+	}
+	return relay.Unknown
 }
 
 // 创建设备 ID
