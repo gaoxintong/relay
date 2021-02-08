@@ -47,6 +47,6 @@ func (r *Relay) dispatchSaveTask(cmd string, data []byte) {
 	case "1b":
 		r.SaveInputState(data)
 	case "2a":
-		r.SaveTHState(data)
+		r.SaveTH(data)
 	}
 }

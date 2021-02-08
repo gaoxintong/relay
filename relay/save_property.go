@@ -61,8 +61,8 @@ func makeInputStates(stateStrs []string) (InputStates, error) {
 	return states, nil
 }
 
-// SaveTHState 保存温湿度状态
-func (r *Relay) SaveTHState(data []byte) {
+// SaveTH 保存温湿度状态
+func (r *Relay) SaveTH(data []byte) {
 	temperature, err := makeTemperature(data[4], data[5], data[6])
 	if err != nil {
 		fmt.Println(err)
