@@ -66,12 +66,12 @@ func (r *Relay) SaveTHState(data []byte) {
 	temperature, err := makeTemperature(data[4], data[5], data[6])
 	if err != nil {
 		fmt.Println(err)
-		// log
+		// TODO log
 	}
 	humidity, err := makeHumidity(data[7], data[8])
 	if err != nil {
 		fmt.Println(err)
-		// log
+		// TODO log
 	}
 	th := TH{
 		Temperature: temperature,

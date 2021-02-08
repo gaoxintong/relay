@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"fmt"
 	"iot-sdk-go/sdk/device"
 	"time"
 )
@@ -57,7 +56,7 @@ func (r *Relay) postPropertyLoop(fns GetPropertyFnMap, propertyTypes []PropertyT
 // 发送输出状态
 func (r *Relay) postOutputState(property Property) {
 	if outputStates, ok := property.(OutputStates); ok {
-		fmt.Println("outputStates:", outputStates)
+		// TODO log
 		for _, inputState := range outputStates {
 			r.PostProperty(relayPropertyIDs.OutputStateID, []interface{}{inputState.Route, inputState.Value})
 		}
@@ -67,7 +66,7 @@ func (r *Relay) postOutputState(property Property) {
 // 发送输入状态
 func (r *Relay) postInputState(property interface{}) {
 	if inputStates, ok := property.(InputStates); ok {
-		fmt.Println("inputStates:", inputStates)
+		// TODO log
 		for _, inputState := range inputStates {
 			r.PostProperty(relayPropertyIDs.InputStateID, []interface{}{inputState.Route, inputState.Value})
 		}

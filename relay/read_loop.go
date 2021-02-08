@@ -18,12 +18,12 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 			data := make([]byte, byteOrderLen)
 			if _, err := r.Conn.Read(data); err != nil {
 				fmt.Println("读取失败", err)
-				// log
+				// TODO log
 				break
 			}
 			cmd, err := cmdToStringLower(data[3])
 			if err != nil {
-				// log
+				// TODO log
 				continue
 			}
 			r.dispatchSaveTask(cmd, data)

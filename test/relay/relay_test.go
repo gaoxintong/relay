@@ -39,7 +39,6 @@ func TestRegisterCommand(t *testing.T) {
 		{
 			ID: 1,
 			Callback: func(params map[int]interface{}) {
-				fmt.Println("params:", params)
 				var no = params[0].([]uint8)[0]
 				var state = params[1].([]uint8)[0]
 				var stateType relay.StateCMDType
@@ -50,7 +49,6 @@ func TestRegisterCommand(t *testing.T) {
 				} else if state == 3 {
 					stateType = relay.DelayedOFF
 				}
-				fmt.Println("1")
 				myRelay.SetState(stateType, no)
 			},
 		},
