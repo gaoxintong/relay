@@ -45,9 +45,9 @@ func inputStateMapToSlice(m map[int]uint8) []uint8 {
 func Log(data relay.Data) relay.Data {
 	go func() {
 		switch data.PropertyType {
-		case relay.STATE:
+		case relay.OUTPUTSTATE:
 			stateLog(data)
-		case relay.THSTATE:
+		case relay.TH:
 			thStateLog(data)
 		case relay.INPUTSTATE:
 			inputStateLog(data)

@@ -18,7 +18,7 @@ type Relay struct {
 	middlewares []func(Data) Data
 	outputState OutputStates
 	inputState  InputStates
-	th          TH
+	th          TemperatureAndHumidity
 	keepAlive   time.Duration
 }
 
@@ -40,8 +40,8 @@ type InputState struct {
 	Value uint8
 }
 
-// TH 温湿度
-type TH struct {
+// TemperatureAndHumidity 温湿度
+type TemperatureAndHumidity struct {
 	Temperature float64 // 温度
 	Humidity    float64 //湿度
 }
@@ -63,7 +63,7 @@ func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepA
 		SubDeviceID: subDeviceID,
 		outputState: OutputStates{},
 		inputState:  InputStates{},
-		th:          TH{},
+		th:          TemperatureAndHumidity{},
 		keepAlive:   keepAlive,
 	}
 }
@@ -77,7 +77,7 @@ func (r *Relay) Init() error {
 	// 主动询问状态循环
 	wfs := []WriteFn{
 		{
-			fn: r.InquiryTHState,
+			fn: r.InquiryTH,
 			d:  r.keepAlive,
 		},
 		{

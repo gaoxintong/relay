@@ -39,11 +39,11 @@ func makeOutputStates(stateStrs []string) (OutputStates, error) {
 func (r *Relay) SaveInputState(data []byte) {
 	stateStr := utils.ByteToBinaryString(data[5]) // 二进制字符串
 	stateStrs := strings.Split(stateStr, "")      // 字符串数组
-	states, err := makeOutputStates(stateStrs)
+	states, err := makeInputStates(stateStrs)
 	if err != nil {
 		// TODO log
 	}
-	r.outputState = states
+	r.inputState = states
 }
 
 func makeInputStates(stateStrs []string) (InputStates, error) {
@@ -73,7 +73,7 @@ func (r *Relay) SaveTH(data []byte) {
 		fmt.Println(err)
 		// TODO log
 	}
-	th := TH{
+	th := TemperatureAndHumidity{
 		Temperature: temperature,
 		Humidity:    humidity,
 	}

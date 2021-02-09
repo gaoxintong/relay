@@ -16,7 +16,7 @@ func (r *Relay) getData(data Data) interface{} {
 
 // GetOutputState 获取输出状态
 func (r *Relay) GetOutputState() Property {
-	return r.getData(Data{PropertyType: STATE, Data: r.outputState})
+	return r.getData(Data{PropertyType: OUTPUTSTATE, Data: r.outputState})
 }
 
 // GetInputState 获取 8 路输入状态
@@ -26,5 +26,5 @@ func (r *Relay) GetInputState() Property {
 
 // GetTH 获取温湿度
 func (r *Relay) GetTH() Property {
-	return r.getData(Data{PropertyType: THSTATE, Data: r.th})
+	return r.getData(Data{PropertyType: TH, Data: r.th})
 }

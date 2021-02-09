@@ -29,7 +29,7 @@ func TestAutoPostProperty(t *testing.T) {
 	myRelay.Init()
 	myRelay.Use(middleware.Log)
 	myRelay.AutoPostProperty([]relay.PropertyType{
-		relay.STATE, relay.THSTATE, relay.INPUTSTATE,
+		relay.OUTPUTSTATE, relay.TH, relay.INPUTSTATE,
 	})
 }
 
