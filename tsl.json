@@ -22,11 +22,11 @@
       "status": [
         {
           "value_type": 7,
-          "name": "value"
+          "name": "route"
         },
         {
           "value_type": 7,
-          "name": "route"
+          "name": "value"
         }
       ]
     },
