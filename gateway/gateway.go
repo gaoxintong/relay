@@ -6,9 +6,9 @@ import (
 	"iot-sdk-go/sdk/device"
 	"iot-sdk-go/sdk/topics"
 	"net"
+	"relay/pkg/convcode"
 	"relay/pkg/utils"
 	"relay/relay"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -186,8 +186,8 @@ func getDeviceID(data []byte) (uint16, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "get ID failed")
 	}
-	ID := IDM + IDN
-	IDUint16, err := strconv.ParseUint(ID, 10, 32)
+	IDStr := IDM + IDN
+	IDUint16, err := convcode.Hex2Dec(IDStr)
 	if err != nil {
 		return 0, errors.Wrap(err, "get ID failed")
 	}
