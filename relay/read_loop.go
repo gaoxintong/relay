@@ -19,7 +19,7 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 			if _, err := r.Conn.Read(data); err != nil {
 				fmt.Println("读取失败", err)
 				// TODO log
-				break
+				continue
 			}
 			cmd, err := cmdToStringLower(data[3])
 			if err != nil {
