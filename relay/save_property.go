@@ -37,7 +37,7 @@ func makeOutputStates(stateStrs []string) (OutputStates, error) {
 
 // SaveInputState 保存输入状态
 func (r *Relay) SaveInputState(data []byte) {
-	stateStr := utils.ByteToBinaryString(data[5]) // 二进制字符串
+	stateStr := utils.ByteToBinaryString(data[4]) // 二进制字符串
 	stateStrs := strings.Split(stateStr, "")      // 字符串数组
 	states, err := makeInputStates(stateStrs)
 	if err != nil {
