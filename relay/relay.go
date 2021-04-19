@@ -1,8 +1,10 @@
 package relay
 
 import (
+	"fmt"
 	"iot-sdk-go/sdk/device"
 	"net"
+	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -20,6 +22,9 @@ type Relay struct {
 	inputState  InputStates
 	th          TemperatureAndHumidity
 	keepAlive   time.Duration
+
+	offlineCb func(relay *Relay)
+	closed    chan bool
 }
 
 // OutputStates 输出状态集合
@@ -56,7 +61,7 @@ type GetPropertyFn func() Property
 type Property interface{}
 
 // New 创建继电器实例
-func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepAlive time.Duration) *Relay {
+func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepAlive time.Duration, offlineCb ...func(relay *Relay)) *Relay {
 	return &Relay{
 		Instance:    DeviceInstance,
 		Conn:        conn,
@@ -65,6 +70,8 @@ func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepA
 		inputState:  InputStates{},
 		th:          TemperatureAndHumidity{},
 		keepAlive:   keepAlive,
+		closed:      make(chan bool),
+		offlineCb:   offlineCb[0],
 	}
 }
 
@@ -94,16 +101,27 @@ func (r *Relay) Init() error {
 
 // Use 使用中间件
 func (r *Relay) Use(fns ...func(Data) Data) {
-	for _, fn := range fns {
-		r.middlewares = append(r.middlewares, fn)
-	}
+	r.middlewares = append(r.middlewares, fns...)
 }
 
 // Online 上线
 func (r *Relay) Online(stateTypes []PropertyType) error {
+	fmt.Printf("%v 设备 %d 上线\n", time.Now().Format("2006-01-02 15:04:05"), r.SubDeviceID)
 	if err := r.Init(); err != nil {
 		return err
 	}
 	r.AutoPostProperty(stateTypes)
 	return nil
+}
+
+// Offline 下线
+func (r *Relay) Offline() {
+	fmt.Printf("%v 设备 %d 下线\n", time.Now().Format("2006-01-02 15:04:05"), r.SubDeviceID)
+	r.Conn.Close()
+	r.closed <- true
+	// FIXME: 仍然有 goroutine leak
+	fmt.Printf("携程数量：%d \n", runtime.NumGoroutine())
+	if r.offlineCb != nil {
+		r.offlineCb(r)
+	}
 }

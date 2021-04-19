@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"relay/pkg/utils"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -17,9 +18,9 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 		for {
 			data := make([]byte, byteOrderLen)
 			if _, err := r.Conn.Read(data); err != nil {
-				fmt.Println("读取失败", err)
-				// TODO log
-				continue
+				fmt.Printf("%v %v \n", time.Now().Format("2006-01-02 15:04:05"), err)
+				r.Offline()
+				break
 			}
 			cmd, err := cmdToStringLower(data[3])
 			if err != nil {

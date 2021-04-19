@@ -9,7 +9,7 @@ var device8808 *relay.MockDevice
 
 func init() {
 	device8808 = &relay.MockDevice{
-		TCPServerAddress: "192.168.2.136:9001",
+		TCPServerAddress: "0.0.0.0:5000",
 		IDM:              "88",
 		IDN:              "08",
 		KeepAlive:        1 * time.Second,

@@ -28,26 +28,29 @@ func (r *Relay) AutoPostProperty(stateTypes []PropertyType) {
 		TH:          r.GetTH,
 	}
 	go r.postPropertyLoop(fns, stateTypes)
-	for {
-	}
 }
 
 // 循环发送属性
 func (r *Relay) postPropertyLoop(fns GetPropertyFnMap, propertyTypes []PropertyType) {
 	for {
-		time.Sleep(r.keepAlive)
-		for _, name := range propertyTypes {
-			if _, ok := fns[name]; !ok {
-				continue
-			}
-			property := fns[name]()
-			switch name {
-			case OUTPUTSTATE:
-				r.postOutputState(property)
-			case INPUTSTATE:
-				r.postInputState(property)
-			case TH:
-				r.postTH(property)
+		select {
+		case <-r.closed:
+			return
+		default:
+			time.Sleep(r.keepAlive)
+			for _, name := range propertyTypes {
+				if _, ok := fns[name]; !ok {
+					continue
+				}
+				property := fns[name]()
+				switch name {
+				case OUTPUTSTATE:
+					r.postOutputState(property)
+				case INPUTSTATE:
+					r.postInputState(property)
+				case TH:
+					r.postTH(property)
+				}
 			}
 		}
 	}

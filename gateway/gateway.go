@@ -70,12 +70,12 @@ func (g *Gateway) initInstance() error {
 
 // DeviceOnline 设备上线
 func (g *Gateway) DeviceOnline(conn net.Conn, deviceID uint16) {
-	device := g.getRelay(conn, deviceID)
+	device := g.getOrCreateRelay(conn, deviceID)
 	device.Online(relay.DefaultStateTypes)
 }
 
 // 获取继电器设备实例 不存在则创建
-func (g *Gateway) getRelay(conn net.Conn, deviceID uint16) *relay.Relay {
+func (g *Gateway) getOrCreateRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 	device, ok := g.Devices[deviceID]
 	if !ok {
 		device = g.makeRelay(conn, deviceID)
@@ -86,7 +86,10 @@ func (g *Gateway) getRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 
 // 创建继电器设备实例
 func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
-	return relay.New(g.Instance, conn, deviceID, g.KeepAlive)
+	offlineCb := func(relay *relay.Relay) {
+		delete(g.Devices, uint16(relay.SubDeviceID))
+	}
+	return relay.New(g.Instance, conn, deviceID, g.KeepAlive, offlineCb)
 }
 
 // 注册命令

@@ -20,8 +20,14 @@ func (r *Relay) WriteLoop(wfs []WriteFn) error {
 	for _, wf := range wfs {
 		go func(wf WriteFn) {
 			for {
-				wf.fn()
-				time.Sleep(wf.d)
+				select {
+				case <-r.closed:
+					r.Offline()
+					break
+				default:
+					wf.fn()
+					time.Sleep(wf.d)
+				}
 			}
 		}(wf)
 	}
