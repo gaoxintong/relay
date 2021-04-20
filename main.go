@@ -12,8 +12,6 @@ func main() {
 	deviceName := "relay"
 	version := "1.0.0"
 	g := gateway.New(TCPAddress, IOTHubAddress, productKey, deviceName, version)
-	// go pages.Run()
-	// pages.Run()
 	if err := g.Run(); err != nil {
 		panic(err)
 	}
