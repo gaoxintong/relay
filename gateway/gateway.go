@@ -60,7 +60,7 @@ func (g *Gateway) Run() error {
 }
 
 func debug() {
-	log.Println(http.ListenAndServe("localhost:6060", nil))
+	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 }
 
 // 创建 device 实例
