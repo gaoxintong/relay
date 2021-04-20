@@ -39,7 +39,7 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, gatewayName
 		ProductKey:    productKey,
 		Name:          gatewayName,
 		Version:       version,
-		Devices:       make(map[uint16]*relay.Relay),
+		Devices:       make(map[uint16]*relay.Relay, 100),
 		KeepAlive:     5 * time.Second,
 	}
 }
@@ -47,14 +47,14 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, gatewayName
 // Run 启动网关服务
 func (g *Gateway) Run() error {
 	if err := g.initInstance(); err != nil {
-		return errors.Wrap(err, "gateway run failed")
+		return errors.Wrap(err, "gateway: init instance failed")
 	}
 	if err := g.initCommand(); err != nil {
-		return errors.Wrap(err, "gateway run failed")
+		return errors.Wrap(err, "gateway: init command failed")
 	}
 	go debug()
 	if err := g.startTCPServer(); err != nil {
-		return errors.Wrap(err, "gateway run failed")
+		return errors.Wrap(err, "gateway: start tcp server failed")
 	}
 	return nil
 }
