@@ -1,3 +1,4 @@
 prg
 storage.yaml
-pkg/*
+/pkg/
+pkg/iot-sdk-go
