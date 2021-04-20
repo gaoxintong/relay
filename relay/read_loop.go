@@ -2,6 +2,7 @@ package relay
 
 import (
 	"fmt"
+	"io"
 	"relay/pkg/utils"
 	"strings"
 	"time"
@@ -19,6 +20,9 @@ func (r *Relay) ReadLoop(byteOrderLen int) error {
 			data := make([]byte, byteOrderLen)
 			if _, err := r.Conn.Read(data); err != nil {
 				fmt.Printf("%v %v \n", time.Now().Format("2006-01-02 15:04:05"), err)
+				if err == io.EOF {
+					continue
+				}
 				r.Offline()
 				break
 			}
