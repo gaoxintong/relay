@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"iot-sdk-go/sdk/device"
 	"iot-sdk-go/sdk/topics"
+	"log"
 	"net"
 	"relay/pkg/convcode"
 	"relay/pkg/utils"
 	"relay/relay"
 	"time"
+
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/pkg/errors"
 )
@@ -48,10 +52,15 @@ func (g *Gateway) Run() error {
 	if err := g.initCommand(); err != nil {
 		return errors.Wrap(err, "gateway run failed")
 	}
+	go debug()
 	if err := g.startTCPServer(); err != nil {
 		return errors.Wrap(err, "gateway run failed")
 	}
 	return nil
+}
+
+func debug() {
+	log.Println(http.ListenAndServe("localhost:6060", nil))
 }
 
 // 创建 device 实例
