@@ -22,8 +22,7 @@ func (r *Relay) WriteLoop(wfs []WriteFn) error {
 			for {
 				select {
 				case <-r.closed:
-					r.Offline()
-					break
+					return
 				default:
 					wf.fn()
 					time.Sleep(wf.d)

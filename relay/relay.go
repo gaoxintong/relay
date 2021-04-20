@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"iot-sdk-go/sdk/device"
 	"net"
-	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -118,9 +117,7 @@ func (r *Relay) Online(stateTypes []PropertyType) error {
 func (r *Relay) Offline() {
 	fmt.Printf("%v 设备 %d 下线\n", time.Now().Format("2006-01-02 15:04:05"), r.SubDeviceID)
 	r.Conn.Close()
-	r.closed <- true
-	// FIXME: 仍然有 goroutine leak
-	fmt.Printf("携程数量：%d \n", runtime.NumGoroutine())
+	close(r.closed)
 	if r.offlineCb != nil {
 		r.offlineCb(r)
 	}
