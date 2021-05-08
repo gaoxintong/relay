@@ -2,10 +2,10 @@ package gateway
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"iot-sdk-go/sdk/device"
 	"iot-sdk-go/sdk/topics"
-	"log"
 	"net"
 	"relay/pkg/convcode"
 	"relay/pkg/utils"
@@ -52,15 +52,50 @@ func (g *Gateway) Run() error {
 	if err := g.initCommand(); err != nil {
 		return errors.Wrap(err, "gateway: init command failed")
 	}
-	go debug()
+	//go debug()
+	go g.startHTTPServer()
 	if err := g.startTCPServer(); err != nil {
 		return errors.Wrap(err, "gateway: start tcp server failed")
 	}
 	return nil
 }
 
-func debug() {
-	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+//func debug() {
+//	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+//}
+
+func (g *Gateway) startHTTPServer() {
+	http.HandleFunc("/devices", func(rw http.ResponseWriter, req *http.Request) {
+		type Device struct {
+			DeviceCodeHex   string `json:"deviceCodeHex"`
+			DeviceCodeAscii uint16 `json:"deviceCodeAscii"`
+			Address         string `json:"address"`
+			OnlineTime      string `json:"onlineTime"`
+		}
+		type DeviceInfo struct {
+			Count uint64   `json:"count"`
+			List  []*Device `json:"list"`
+		}
+
+		var devices DeviceInfo
+		for _, device := range g.Devices {
+			devices.List = append(devices.List, &Device{
+				DeviceCodeHex:   convcode.Dec2Hex(int(device.SubDeviceID)),
+				DeviceCodeAscii: device.SubDeviceID,
+				Address:         device.Conn.RemoteAddr().String(),
+				OnlineTime:      device.OnlineTime,
+			})
+		}
+		devices.Count = uint64(len(devices.List))
+		b, err := json.Marshal(devices)
+		fmt.Printf("json length: %v",len(g.Devices))
+		if err != nil {
+			rw.Write([]byte(err.Error()))
+			return
+		}
+		rw.Write(b)
+	})
+	http.ListenAndServe("0.0.0.0:6060", nil)
 }
 
 // 创建 device 实例
@@ -98,6 +133,7 @@ func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 	offlineCb := func(relay *relay.Relay) {
 		delete(g.Devices, uint16(relay.SubDeviceID))
 	}
+
 	return relay.New(g.Instance, conn, deviceID, g.KeepAlive, offlineCb)
 }
 

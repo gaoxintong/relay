@@ -16,6 +16,8 @@ type Relay struct {
 	SubDeviceID uint16
 	Conn        net.Conn
 
+	OnlineTime string
+
 	middlewares []func(Data) Data
 	outputState OutputStates
 	inputState  InputStates
@@ -71,6 +73,7 @@ func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepA
 		keepAlive:   keepAlive,
 		closed:      make(chan bool),
 		offlineCb:   offlineCb[0],
+		OnlineTime:  time.Now().Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -117,8 +120,19 @@ func (r *Relay) Online(stateTypes []PropertyType) error {
 func (r *Relay) Offline() {
 	fmt.Printf("%v 设备 %d 下线\n", time.Now().Format("2006-01-02 15:04:05"), r.SubDeviceID)
 	r.Conn.Close()
-	close(r.closed)
+	if !isClosed(r.closed) {
+		close(r.closed)
+	}
 	if r.offlineCb != nil {
 		r.offlineCb(r)
 	}
+}
+
+func isClosed(ch <-chan bool) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+	return false
 }
