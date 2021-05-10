@@ -2,17 +2,16 @@ package gateway
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"iot-sdk-go/sdk/device"
 	"iot-sdk-go/sdk/topics"
 	"net"
 	"relay/pkg/convcode"
+	"relay/pkg/lru"
 	"relay/pkg/utils"
 	"relay/relay"
 	"time"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/pkg/errors"
@@ -27,8 +26,20 @@ type Gateway struct {
 	ProductKey    string
 	Name          string
 	Version       string
-	Devices       map[uint16]*relay.Relay
+	Devices       Devices
 	KeepAlive     time.Duration
+}
+
+type Devices map[uint16]*Device
+
+type Device struct {
+	*relay.Relay
+	*lru.LRU
+}
+
+type DataRecord struct {
+	relay.Data
+	Time string
 }
 
 // New 创建网关
@@ -39,7 +50,7 @@ func New(TCPAddress string, IOTHubAddress string, productKey string, gatewayName
 		ProductKey:    productKey,
 		Name:          gatewayName,
 		Version:       version,
-		Devices:       make(map[uint16]*relay.Relay, 100),
+		Devices:       make(map[uint16]*Device, 100),
 		KeepAlive:     5 * time.Second,
 	}
 }
@@ -52,49 +63,11 @@ func (g *Gateway) Run() error {
 	if err := g.initCommand(); err != nil {
 		return errors.Wrap(err, "gateway: init command failed")
 	}
-	//go debug()
 	go g.startHTTPServer()
 	if err := g.startTCPServer(); err != nil {
 		return errors.Wrap(err, "gateway: start tcp server failed")
 	}
 	return nil
-}
-
-//func debug() {
-//	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
-//}
-
-func (g *Gateway) startHTTPServer() {
-	http.HandleFunc("/devices", func(rw http.ResponseWriter, req *http.Request) {
-		type Device struct {
-			DeviceCodeHex   string `json:"deviceCodeHex"`
-			DeviceCodeAscii uint16 `json:"deviceCodeAscii"`
-			Address         string `json:"address"`
-			OnlineTime      string `json:"onlineTime"`
-		}
-		type DeviceInfo struct {
-			Count uint64    `json:"count"`
-			List  []*Device `json:"list"`
-		}
-
-		var devices DeviceInfo
-		for _, device := range g.Devices {
-			devices.List = append(devices.List, &Device{
-				DeviceCodeHex:   convcode.Dec2Hex(int(device.SubDeviceID)),
-				DeviceCodeAscii: device.SubDeviceID,
-				Address:         device.Conn.RemoteAddr().String(),
-				OnlineTime:      device.OnlineTime,
-			})
-		}
-		devices.Count = uint64(len(devices.List))
-		b, err := json.Marshal(devices)
-		if err != nil {
-			rw.Write([]byte(err.Error()))
-			return
-		}
-		rw.Write(b)
-	})
-	http.ListenAndServe("0.0.0.0:6060", nil)
 }
 
 // 创建 device 实例
@@ -121,10 +94,10 @@ func (g *Gateway) DeviceOnline(conn net.Conn, deviceID uint16) {
 func (g *Gateway) getOrCreateRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 	device, ok := g.Devices[deviceID]
 	if !ok {
-		device = g.makeRelay(conn, deviceID)
+		device = &Device{g.makeRelay(conn, deviceID), lru.New(20)}
 		g.Devices[deviceID] = device
 	}
-	return device
+	return device.Relay
 }
 
 // 创建继电器设备实例
@@ -133,7 +106,12 @@ func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
 		delete(g.Devices, uint16(relay.SubDeviceID))
 	}
 
-	return relay.New(g.Instance, conn, deviceID, g.KeepAlive, offlineCb)
+	return relay.New(g.Instance,
+		conn, deviceID,
+		g.KeepAlive,
+		relay.OfflineCallback(offlineCb),
+		relay.Middlewares(PropertyLog(g.Devices)),
+	)
 }
 
 // 注册命令

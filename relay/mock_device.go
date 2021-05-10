@@ -28,8 +28,8 @@ func (m *MockDevice) InitTCPClient() {
 	m.sendCommand(cmd)
 }
 
-// 重连
-func (m *MockDevice) reconn() {
+// 自动重连
+func (m *MockDevice) reconnection() {
 	for {
 		time.Sleep(m.KeepAlive)
 		conn, err := net.Dial("tcp4", m.TCPServerAddress)
@@ -47,7 +47,7 @@ func (m *MockDevice) AutoPostDeviceInfo() {
 			time.Sleep(m.KeepAlive)
 			cmd := "A0 " + m.IDM + " " + m.IDN + " 2A 00 00 00 00 00 00 00 00 A7"
 			if err := m.sendCommand(cmd); err != nil && err == netError {
-				m.reconn()
+				m.reconnection()
 			}
 		}
 	}()

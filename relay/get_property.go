@@ -9,7 +9,7 @@ type Data struct {
 // 获取数据
 func (r *Relay) getData(data Data) interface{} {
 	for _, mw := range r.middlewares {
-		data = mw(data)
+		data = mw(r, data)
 	}
 	return data.Data
 }

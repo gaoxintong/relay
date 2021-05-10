@@ -18,15 +18,17 @@ type Relay struct {
 
 	OnlineTime string
 
-	middlewares []func(Data) Data
+	middlewares []Middleware
 	outputState OutputStates
 	inputState  InputStates
 	th          TemperatureAndHumidity
 	keepAlive   time.Duration
 
-	offlineCb func(relay *Relay)
-	closed    chan bool
+	OfflineCallbackFn func(relay *Relay)
+	closed            chan bool
 }
+
+type Middleware func(*Relay, Data) Data
 
 // OutputStates 输出状态集合
 type OutputStates []OutputState
@@ -61,9 +63,26 @@ type GetPropertyFn func() Property
 // Property 属性
 type Property interface{}
 
+// Option 继电器配置
+type Option func(*Relay)
+
+// OfflineCallback 离线回调配置
+func OfflineCallback(cb func(relay *Relay)) Option {
+	return func(r *Relay) {
+		r.OfflineCallbackFn = cb
+	}
+}
+
+// Middlewares 中间件配置
+func Middlewares(middlewares ...Middleware) Option {
+	return func(r *Relay) {
+		r.middlewares = middlewares
+	}
+}
+
 // New 创建继电器实例
-func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepAlive time.Duration, offlineCb ...func(relay *Relay)) *Relay {
-	return &Relay{
+func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepAlive time.Duration, options ...Option) *Relay {
+	relay := &Relay{
 		Instance:    DeviceInstance,
 		Conn:        conn,
 		SubDeviceID: subDeviceID,
@@ -72,9 +91,12 @@ func New(DeviceInstance *device.Device, conn net.Conn, subDeviceID uint16, keepA
 		th:          TemperatureAndHumidity{},
 		keepAlive:   keepAlive,
 		closed:      make(chan bool),
-		offlineCb:   offlineCb[0],
 		OnlineTime:  time.Now().Format("2006-01-02 15:04:05"),
 	}
+	for _, option := range options {
+		option(relay)
+	}
+	return relay
 }
 
 // Init 初始化资源
@@ -102,7 +124,7 @@ func (r *Relay) Init() error {
 }
 
 // Use 使用中间件
-func (r *Relay) Use(fns ...func(Data) Data) {
+func (r *Relay) Use(fns ...Middleware) {
 	r.middlewares = append(r.middlewares, fns...)
 }
 
@@ -123,8 +145,8 @@ func (r *Relay) Offline() {
 	if !isClosed(r.closed) {
 		close(r.closed)
 	}
-	if r.offlineCb != nil {
-		r.offlineCb(r)
+	if r.OfflineCallbackFn != nil {
+		r.OfflineCallbackFn(r)
 	}
 }
 
