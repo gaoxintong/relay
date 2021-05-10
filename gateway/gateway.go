@@ -73,7 +73,7 @@ func (g *Gateway) startHTTPServer() {
 			OnlineTime      string `json:"onlineTime"`
 		}
 		type DeviceInfo struct {
-			Count uint64   `json:"count"`
+			Count uint64    `json:"count"`
 			List  []*Device `json:"list"`
 		}
 
@@ -88,7 +88,6 @@ func (g *Gateway) startHTTPServer() {
 		}
 		devices.Count = uint64(len(devices.List))
 		b, err := json.Marshal(devices)
-		fmt.Printf("json length: %v",len(g.Devices))
 		if err != nil {
 			rw.Write([]byte(err.Error()))
 			return
