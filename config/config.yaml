@@ -1,0 +1,10 @@
+# tcp 监听服务地址
+TCPAddress: 0.0.0.0:5000
+# iot 平台地址
+IOTHubAddress: www.yehaoji.com:18100
+# 产品 Key
+productKey: 3e67c6e104b920cbc5da9fa8d669d5af36bf672d84cfbce62230addea9de1f6eed89e9ba89ab267aa72c3608a0bd1141
+# 设备 Name
+deviceName: relay-test
+# 设备版本
+version: 1.0.0
