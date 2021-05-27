@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"relay/gateway"
@@ -29,7 +30,8 @@ type Config struct {
 var config = &Config{}
 
 func init() {
-	yamlFile, err := ioutil.ReadFile("./config/config.yaml")
+	configPath := flag.String("c", "./config/config.yaml", "set your config path")
+	yamlFile, err := ioutil.ReadFile(*configPath)
 	if err != nil {
 		panic(err)
 	}
