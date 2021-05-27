@@ -36,7 +36,7 @@ func (g *Gateway) allDeviceLog(rw http.ResponseWriter, req *http.Request) {
 	var devices DeviceInfo
 	for _, device := range g.Devices {
 		log := []interface{}{}
-		for _, Node := range device.LRU.GetAll() {
+		for _, Node := range device.LRUCache.GetAll() {
 			log = append(log, Node.Value)
 		}
 		devices.List = append(devices.List, &Device{
@@ -78,7 +78,7 @@ func (g *Gateway) getDeviceLog(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log := []interface{}{}
-	for _, Node := range device.LRU.GetAll() {
+	for _, Node := range device.LRUCache.GetAll() {
 		log = append(log, Node.Value)
 	}
 	ret = &Device{

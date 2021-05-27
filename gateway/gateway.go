@@ -34,7 +34,7 @@ type Devices map[uint16]*Device
 
 type Device struct {
 	*relay.Relay
-	*lru.LRU
+	*lru.LRUCache
 }
 
 type DataRecord struct {
