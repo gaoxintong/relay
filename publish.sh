@@ -1,4 +1,4 @@
 ./build.sh
-ssh root@123.232.115.10 -p 9022 "/root/services/prg/kill.sh"
-scp -P 9022 ./prg root@123.232.115.10:/root/services/prg
-ssh root@123.232.115.10 -p 9022 "/root/services/prg.sh"
+ssh root@123.232.115.10 -p 9022 "/root/services/gateway/kill.sh"
+scp -P 9022 ./gateway root@123.232.115.10:/root/services/gateway
+ssh root@123.232.115.10 -p 9022 "/root/services/gateway/run.sh"
