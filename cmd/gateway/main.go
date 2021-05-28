@@ -4,7 +4,7 @@ import (
 	"flag"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"relay/gateway"
+	"relay/app/gateway"
 )
 
 func main() {

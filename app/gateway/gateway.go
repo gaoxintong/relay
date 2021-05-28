@@ -6,10 +6,10 @@ import (
 	"iot-sdk-go/sdk/device"
 	"iot-sdk-go/sdk/topics"
 	"net"
+	relay2 "relay/app/relay"
 	"relay/pkg/convcode"
 	"relay/pkg/lru"
 	"relay/pkg/utils"
-	"relay/relay"
 	"time"
 
 	_ "net/http/pprof"
@@ -33,12 +33,12 @@ type Gateway struct {
 type Devices map[uint16]*Device
 
 type Device struct {
-	*relay.Relay
+	*relay2.Relay
 	*lru.LRUCache
 }
 
 type DataRecord struct {
-	relay.Data
+	relay2.Data
 	Time string
 }
 
@@ -87,11 +87,11 @@ func (g *Gateway) initInstance() error {
 // DeviceOnline 设备上线
 func (g *Gateway) DeviceOnline(conn net.Conn, deviceID uint16) {
 	device := g.getOrCreateRelay(conn, deviceID)
-	device.Online(relay.DefaultStateTypes)
+	device.Online(relay2.DefaultStateTypes)
 }
 
 // 获取继电器设备实例 不存在则创建
-func (g *Gateway) getOrCreateRelay(conn net.Conn, deviceID uint16) *relay.Relay {
+func (g *Gateway) getOrCreateRelay(conn net.Conn, deviceID uint16) *relay2.Relay {
 	device, ok := g.Devices[deviceID]
 	if !ok {
 		device = &Device{g.makeRelay(conn, deviceID), lru.New(20)}
@@ -101,16 +101,16 @@ func (g *Gateway) getOrCreateRelay(conn net.Conn, deviceID uint16) *relay.Relay 
 }
 
 // 创建继电器设备实例
-func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay.Relay {
-	offlineCb := func(relay *relay.Relay) {
+func (g *Gateway) makeRelay(conn net.Conn, deviceID uint16) *relay2.Relay {
+	offlineCb := func(relay *relay2.Relay) {
 		delete(g.Devices, uint16(relay.SubDeviceID))
 	}
 
-	return relay.New(g.Instance,
+	return relay2.New(g.Instance,
 		conn, deviceID,
 		g.KeepAlive,
-		relay.OfflineCallback(offlineCb),
-		relay.Middlewares(PropertyLog(g.Devices)),
+		relay2.OfflineCallback(offlineCb),
+		relay2.Middlewares(PropertyLog(g.Devices)),
 	)
 }
 
@@ -137,23 +137,23 @@ func (g *Gateway) dispatchSetStateCommand(params map[int]interface{}) {
 		no := params[0].([]uint8)[0]
 		state := params[1].([]uint8)[0]
 		stateType := getDeviceState(state)
-		if stateType != relay.Unknown {
+		if stateType != relay2.Unknown {
 			device.SetState(stateType, no)
 		}
 	}
 }
 
-func getDeviceState(state uint8) relay.StateCMDType {
+func getDeviceState(state uint8) relay2.StateCMDType {
 	if state == 1 {
-		return relay.ON
+		return relay2.ON
 	}
 	if state == 2 {
-		return relay.OFF
+		return relay2.OFF
 	}
 	if state == 3 {
-		return relay.DelayedOFF
+		return relay2.DelayedOFF
 	}
-	return relay.Unknown
+	return relay2.Unknown
 }
 
 // 创建设备 ID
