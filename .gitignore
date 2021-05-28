@@ -3,6 +3,6 @@ storage.yaml
 /pkg/
 pkg/iot-sdk-go
 
-storage.yaml
+./storage.yaml
 gateway
 gateway.exe
