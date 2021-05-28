@@ -1,0 +1,1 @@
+go run ./cmd/... -c ./config/config.yaml
