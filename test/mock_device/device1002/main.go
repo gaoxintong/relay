@@ -1,7 +1,7 @@
 package main
 
 import (
-	"relay/relay"
+	"relay/app/relay"
 	"time"
 )
 

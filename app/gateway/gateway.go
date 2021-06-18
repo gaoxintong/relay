@@ -178,12 +178,12 @@ func (g *Gateway) startTCPServer() error {
 			// log
 			continue
 		}
-		data, err := readData(conn, 13)
+		data, err := ReadData(conn, 13)
 		if err != nil {
 			// log
 			continue
 		}
-		ID, err := getDeviceID(data)
+		ID, err := GetDeviceID(data)
 		if err != nil {
 			// log
 			continue
@@ -193,7 +193,7 @@ func (g *Gateway) startTCPServer() error {
 }
 
 // 读数据
-func readData(conn net.Conn, byteOrderLen int) ([]byte, error) {
+func ReadData(conn net.Conn, byteOrderLen int) ([]byte, error) {
 	data := make([]byte, byteOrderLen)
 	if _, err := conn.Read(data); err != nil {
 		return data, errors.New("read data failed")
@@ -202,7 +202,7 @@ func readData(conn net.Conn, byteOrderLen int) ([]byte, error) {
 }
 
 // 获取设备 ID
-func getDeviceID(data []byte) (uint16, error) {
+func GetDeviceID(data []byte) (uint16, error) {
 	IDM, err := utils.ByteToHex(data[1])
 	if err != nil {
 		return 0, errors.Wrap(err, "get ID failed")
