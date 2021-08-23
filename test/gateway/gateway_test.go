@@ -1,7 +1,7 @@
 package gateway_test
 
 import (
-	"relay/gateway"
+	"relay/app/gateway"
 	"testing"
 )
 
